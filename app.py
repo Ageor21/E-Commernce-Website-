@@ -333,54 +333,53 @@ def remove_from_cart(product_id):
 
 @app.route('/place_order', methods=['POST'])
 def place_order():
+    print("PLACE ORDER ROUTE HIT")
+
     user_id = session.get('user_id')
+    print("USER ID:", user_id)
 
     if not user_id:
         flash("You need to log in to place an order.", "danger")
         return redirect(url_for('login'))
 
     user = User.query.get(user_id)
-
-    if not user:
-        flash("User not found. Please log in again.", "danger")
-        return redirect(url_for('login'))
+    print("USER:", user)
 
     cart_items = CartItem.query.filter_by(user_id=user_id).all()
+    print("CART ITEMS:", cart_items)
 
     if not cart_items:
         flash("Your cart is empty. Add items to your cart before placing an order.", "warning")
         return redirect(url_for('cart'))
 
     total_price = sum(item.quantity * item.product.price for item in cart_items)
+    print("TOTAL PRICE:", total_price)
 
-    order = Order(
-        user_id=user_id,
-        total_price=total_price
-    )
+    
+
+    order = Order(user_id=user_id, total_price=total_price)
 
     db.session.add(order)
     db.session.commit()
+    print("ORDER CREATED:", order.id)
 
-    # Clear the cart after the order is created
     CartItem.query.filter_by(user_id=user_id).delete()
     db.session.commit()
+    print("CART CLEARED")
 
     email_sent = send_email(
         "Order Confirmation",
         [user.email],
-        f"Hi {user.name},\n\n"
-        f"Your order has been placed successfully. Order ID: {order.id}.\n\n"
-        f"Thank you for shopping with us!\n"
-        f"The ShopEase Team"
+        f"Hi {user.name},\n\nYour order has been placed successfully. Order ID: {order.id}.\n\nThank you for shopping with us!\nThe ShopEase Team"
     )
 
-    if email_sent:
-        flash("Order placed successfully! A confirmation email has been sent.", "success")
-    else:
-        flash("Order placed successfully! Confirmation email could not be sent right now.", "warning")
+    print("EMAIL SENT:", email_sent)
 
     return redirect(url_for('order_confirmation', order_id=order.id))
 
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
 
 @app.route("/order_confirmation/<int:order_id>")
 def order_confirmation(order_id):
