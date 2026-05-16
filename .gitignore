@@ -15,7 +15,10 @@ venv/
 env/
 
 # Flask local instance folder and databases
+<<<<<<< HEAD
 instance/
+=======
+>>>>>>> 686546e (Changed logic, improved stylying, and added new features)
 *.sqlite
 *.sqlite3
 

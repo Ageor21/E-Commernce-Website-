@@ -88,7 +88,7 @@
             <div class="profile-security-box">
                 <div>
                     <h3>Security Check</h3>
-                    <p>Changing your email or password should require your current password.</p>
+                    <p>Changing your email or password requires your current password.</p>
                 </div>
 
                 <label for="current_password">
@@ -105,7 +105,7 @@
 
                 <label for="confirm_password">
                     Confirm New Password
-                    <input type="password" name="confirm_password" id="confirm_password" placeholder="Re-enter new password" autocomplete="new-password">
+                    <input type="password" name="confirm_password" id="confirm_password" placeholder="Re-enter password" autocomplete="new-password">
                 </label>
             </div>
 
@@ -165,20 +165,56 @@
     {% if orders %}
     <div class="profile-order-list" data-order-list>
         {% for order in orders %}
-        <article class="profile-order-card" data-order-card>
+        {% set status = order.status|lower %}
+        {% set status_slug = status|replace(' ', '-') %}
+        {% set progress = get_order_progress(order.status) if get_order_progress is defined else 0 %}
+
+        <article class="profile-order-card profile-order-card-with-tracker" data-order-card data-order-id="{{ order.id }}">
             <div>
                 <strong>Order #{{ order.id }}</strong>
                 <small>{{ order.created_at.strftime('%B %d, %Y at %I:%M %p') }}</small>
             </div>
 
             <div>
-                <span class="status-pill status-{{ order.status|lower }}">{{ order.status }}</span>
+                <span class="status-pill status-{{ status_slug }}" data-order-status>{{ order.status }}</span>
             </div>
 
             <div>
                 <span>Total</span>
                 <strong>${{ "%.2f" % order.total_price }}</strong>
             </div>
+
+            {% if status == 'cancelled' %}
+            <div class="mini-order-tracker mini-order-tracker-cancelled" data-order-tracker data-order-id="{{ order.id }}">
+                <div class="mini-tracker-cancelled-message">
+                    This order has been cancelled.
+                </div>
+            </div>
+            {% else %}
+            <div class="mini-order-tracker" data-order-tracker data-order-id="{{ order.id }}">
+                <div class="mini-tracker-bar" aria-hidden="true" data-initial-progress="{{ progress }}">
+                    <span data-order-progress-bar></span>
+                </div>
+
+                <div class="mini-tracker-steps" aria-label="Order progress for order {{ order.id }}">
+                    <span data-step="pending" class="{% if status in ['pending', 'confirmed', 'processing', 'shipped', 'completed'] %}active{% endif %} {% if status == 'pending' %}current{% endif %}">
+                        Pending
+                    </span>
+
+                    <span data-step="processing" class="{% if status in ['confirmed', 'processing', 'shipped', 'completed'] %}active{% endif %} {% if status in ['confirmed', 'processing'] %}current{% endif %}">
+                        Confirmed
+                    </span>
+
+                    <span data-step="shipped" class="{% if status in ['shipped', 'completed'] %}active{% endif %} {% if status == 'shipped' %}current{% endif %}">
+                        Shipped
+                    </span>
+
+                    <span data-step="completed" class="{% if status == 'completed' %}active current{% endif %}">
+                        Completed
+                    </span>
+                </div>
+            </div>
+            {% endif %}
         </article>
         {% endfor %}
     </div>

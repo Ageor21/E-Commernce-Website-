@@ -3,11 +3,16 @@
 {% block title %}Order Confirmation - Aaron's Tech{% endblock %}
 
 {% block content %}
-<section class="confirmation-card reveal-card">
+{% set status = order.status|lower %}
+{% set status_slug = status|replace(' ', '-') %}
+{% set progress_value = progress if progress is defined else 0 %}
+{% set is_cancelled = status == 'cancelled' %}
+
+<section class="confirmation-card order-confirmation-enhanced" data-order-card data-order-id="{{ order.id }}">
     <div class="success-icon">✓</div>
-    <span class="eyebrow">Order Confirmed</span>
-    <h1>Thank you for your order!</h1>
-    <p>Your order has been placed successfully. You will receive a confirmation email shortly.</p>
+    <span class="eyebrow">Order Placed</span>
+    <h1>Thank You for Your Order!</h1>
+    <p>Your order has been created successfully. You can follow the current status below.</p>
 
     <div class="confirmation-details">
         <div>
@@ -20,7 +25,7 @@
         </div>
         <div>
             <span>Status</span>
-            <strong>{{ order.status }}</strong>
+            <strong data-order-status>{{ order.status }}</strong>
         </div>
         <div>
             <span>Order Date</span>
@@ -28,9 +33,77 @@
         </div>
     </div>
 
-    <div class="hero-actions centered">
-        <a href="{{ url_for('profile') }}" class="button button-secondary">View Profile</a>
-        <a href="{{ url_for('home') }}" class="button button-primary">Keep Shopping</a>
-    </div>
+    <section class="order-progress-card status-{{ status_slug }}" data-order-tracker data-order-id="{{ order.id }}">
+        <div class="order-progress-header">
+            <div>
+                <span class="eyebrow">Live Order Tracker</span>
+                <h3>Order Progress</h3>
+                {% if is_cancelled %}
+                <p>This order has been cancelled. Please contact support if this was a mistake.</p>
+                {% else %}
+                <p>Track your order as it moves from confirmation to delivery completion.</p>
+                {% endif %}
+            </div>
+
+            <span class="order-status-pill" data-order-status>
+                {% if is_cancelled %}Cancelled{% else %}{{ order.status }}{% endif %}
+            </span>
+        </div>
+
+        {% if is_cancelled %}
+        <div class="order-cancelled-message">
+            This order is no longer moving through the fulfillment process.
+        </div>
+        {% else %}
+        <div class="order-progress-track" style="--progress: {{ progress_value }}%;">
+            <div class="progress-step" data-step="pending">
+                <div class="progress-step-icon">1</div>
+                <div class="progress-step-label">
+                    <strong>Pending</strong>
+                    <small>Order received</small>
+                </div>
+            </div>
+
+            <div class="progress-step" data-step="processing">
+                <div class="progress-step-icon">2</div>
+                <div class="progress-step-label">
+                    <strong>Confirmed</strong>
+                    <small>Processing order</small>
+                </div>
+            </div>
+
+            <div class="progress-step" data-step="shipped">
+                <div class="progress-step-icon">3</div>
+                <div class="progress-step-label">
+                    <strong>Shipped</strong>
+                    <small>On the way</small>
+                </div>
+            </div>
+
+            <div class="progress-step" data-step="completed">
+                <div class="progress-step-icon">4</div>
+                <div class="progress-step-label">
+                    <strong>Completed</strong>
+                    <small>Order finished</small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="order-progress-footer">
+            <span>Current state: <strong data-order-status>{{ order.status }}</strong></span>
+            <span>Order #{{ order.id }}</span>
+        </div>
+    </section>
+
+    <section class="panel next-steps-card">
+        <span class="eyebrow">Next Steps</span>
+        <h2>What happens next?</h2>
+        <ul>
+            <li>Track this order from your <a href="{{ url_for('profile') }}">profile</a>.</li>
+            <li>Continue <a href="{{ url_for('home') }}">shopping</a> for more tech products.</li>
+            <li>This page checks for status updates automatically.</li>
+        </ul>
+    </section>
 </section>
 {% endblock %}

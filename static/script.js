@@ -1,23 +1,3 @@
-/**
- * Aaron's Tech - Premium UI Enhancements
- * Drop-in replacement for static/script.js
- *
- * Features:
- * - Client-side form validation with inline errors
- * - Toast notifications
- * - Confirmation modal for delete/remove/place-order actions
- * - Quantity stepper controls
- * - Password show/hide + strength meter
- * - Product-card hover polish
- * - Live product filtering on pages that already render products
- * - Search shortcut, back-to-top button, theme toggle
- * - Flash message auto-dismiss
- * - Table search for admin/profile/cart tables
- *
- * This file is progressive-enhancement only:
- * If JavaScript fails, your Flask forms still work normally.
- */
-
 (() => {
   "use strict";
 
@@ -1512,4 +1492,602 @@
       }
     });
   }
+  // Star Rating
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".star-rating").forEach((group) => {
+    const labels = Array.from(group.querySelectorAll('label[for^="star-"]'));
+    const inputs = Array.from(group.querySelectorAll('input[type="radio"][name="rating"]'));
+
+    if (!labels.length || !inputs.length) return;
+
+    labels.forEach((label) => {
+      const input = document.getElementById(label.getAttribute("for"));
+      if (!input) return;
+
+      label.dataset.ratingValue = input.value;
+
+      label.addEventListener("mouseenter", () => {
+        paintStars(group, Number(input.value), "is-preview");
+      });
+
+      label.addEventListener("click", () => {
+        input.checked = true;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        paintStars(group, Number(input.value), "is-active");
+      });
+    });
+
+    group.addEventListener("mouseleave", () => {
+      clearStarClass(group, "is-preview");
+      const checked = group.querySelector('input[type="radio"][name="rating"]:checked');
+      paintStars(group, checked ? Number(checked.value) : 0, "is-active");
+    });
+
+    inputs.forEach((input) => {
+      input.addEventListener("change", () => {
+        paintStars(group, Number(input.value), "is-active");
+      });
+    });
+  });
+});
+
+function paintStars(group, selectedValue, className) {
+  if (className === "is-active") {
+    clearStarClass(group, "is-active");
+  }
+
+  if (className === "is-preview") {
+    clearStarClass(group, "is-preview");
+  }
+
+  group.querySelectorAll('label[for^="star-"]').forEach((label) => {
+    const value = Number(label.dataset.ratingValue || 0);
+
+    if (value <= selectedValue) {
+      label.classList.add(className);
+    }
+  });
+}
+
+function clearStarClass(group, className) {
+  group.querySelectorAll(`.${className}`).forEach((label) => {
+    label.classList.remove(className);
+  });
+}
+
+//profile logic
+(() => {
+  "use strict";
+
+  document.addEventListener("DOMContentLoaded", () => {
+    setupProfileCompletion();
+    setupPasswordMatch();
+    setupProfileReset();
+    setupCopyEmail();
+    setupOrderFilter();
+  });
+
+  function setupProfileCompletion() {
+    const card = document.querySelector("[data-profile-completion-card]");
+    if (!card) return;
+
+    const name = document.querySelector("#name")?.value.trim();
+    const email = document.querySelector("#email")?.value.trim();
+    const orderCards = document.querySelectorAll("[data-order-card]");
+    const scoreEl = document.querySelector("[data-profile-score]");
+    const progressEl = document.querySelector("[data-profile-progress]");
+    const tipEl = document.querySelector("[data-profile-tip]");
+
+    let score = 25;
+
+    if (name) score += 25;
+    if (email && email.includes("@")) score += 25;
+    if (orderCards.length > 0) score += 25;
+
+    score = Math.min(score, 100);
+
+    if (scoreEl) scoreEl.textContent = `${score}%`;
+    if (progressEl) progressEl.style.width = `${score}%`;
+
+    if (tipEl) {
+      if (score === 100) {
+        tipEl.textContent = "Your profile is looking sharp.";
+      } else if (orderCards.length === 0) {
+        tipEl.textContent = "Place your first order to complete your account story.";
+      } else {
+        tipEl.textContent = "Keep your details updated for a stronger profile.";
+      }
+    }
+  }
+
+  function setupPasswordMatch() {
+    const password = document.querySelector("#password");
+    const confirmPassword = document.querySelector("#confirm_password");
+
+    if (!password || !confirmPassword) return;
+
+    const hint = document.createElement("small");
+    hint.className = "profile-match-hint";
+    confirmPassword.insertAdjacentElement("afterend", hint);
+
+    const update = () => {
+      const first = password.value;
+      const second = confirmPassword.value;
+
+      hint.classList.remove("good", "bad");
+
+      if (!first && !second) {
+        hint.textContent = "Leave password fields blank unless you want to change it.";
+        return;
+      }
+
+      if (first.length > 0 && first.length < 6) {
+        hint.textContent = "New password must be at least 6 characters.";
+        hint.classList.add("bad");
+        return;
+      }
+
+      if (first && !second) {
+        hint.textContent = "Confirm your new password.";
+        hint.classList.add("bad");
+        return;
+      }
+
+      if (first !== second) {
+        hint.textContent = "Passwords do not match yet.";
+        hint.classList.add("bad");
+        return;
+      }
+
+      hint.textContent = "Passwords match.";
+      hint.classList.add("good");
+    };
+
+    password.addEventListener("input", update);
+    confirmPassword.addEventListener("input", update);
+  }
+
+  function setupProfileReset() {
+    const form = document.querySelector("[data-profile-form]");
+    const resetButton = document.querySelector("[data-reset-profile-form]");
+
+    if (!form || !resetButton) return;
+
+    const original = new FormData(form);
+
+    resetButton.addEventListener("click", () => {
+      for (const [name, value] of original.entries()) {
+        const field = form.querySelector(`[name="${CSS.escape(name)}"]`);
+        if (field) field.value = value;
+      }
+
+      form.querySelectorAll("#current_password, #password, #confirm_password").forEach((field) => {
+        field.value = "";
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+
+      showMiniNotice("Profile form reset.", "info");
+    });
+  }
+
+  function setupCopyEmail() {
+    document.querySelectorAll("[data-copy-email]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const email = button.dataset.copyEmail;
+
+        try {
+          await navigator.clipboard.writeText(email);
+          showMiniNotice("Email copied to clipboard.", "success");
+        } catch {
+          showMiniNotice("Could not copy email from this browser.", "warning");
+        }
+      });
+    });
+  }
+
+  function setupOrderFilter() {
+    const search = document.querySelector("[data-order-search]");
+    const cards = Array.from(document.querySelectorAll("[data-order-card]"));
+
+    if (!search || !cards.length) return;
+
+    search.addEventListener("input", () => {
+      const query = search.value.trim().toLowerCase();
+
+      cards.forEach((card) => {
+        card.classList.toggle("is-hidden", query && !card.textContent.toLowerCase().includes(query));
+      });
+    });
+  }
+
+  function showMiniNotice(message, type = "info") {
+    if (typeof window.showToast === "function") {
+      window.showToast(message, type);
+      return;
+    }
+
+    const notice = document.createElement("div");
+    notice.textContent = message;
+    notice.style.position = "fixed";
+    notice.style.right = "1rem";
+    notice.style.bottom = "1rem";
+    notice.style.zIndex = "9999";
+    notice.style.padding = "0.85rem 1rem";
+    notice.style.borderRadius = "999px";
+    notice.style.color = "#fff";
+    notice.style.background = type === "success"
+      ? "linear-gradient(135deg, #22c55e, #06b6d4)"
+      : "linear-gradient(135deg, #7c3aed, #06b6d4)";
+    notice.style.boxShadow = "0 18px 50px rgba(0,0,0,.35)";
+    document.body.appendChild(notice);
+
+    window.setTimeout(() => notice.remove(), 2400);
+  }
 })();
+
+// Cursor logic
+(() => {
+  "use strict";
+
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
+
+  if (prefersReducedMotion || isTouchDevice || window.innerWidth <= 768) return;
+
+  const colors = ["#7c3aed", "#06b6d4", "#facc15"];
+  const interactiveSelector = "a, button, input, textarea, select, .product-card, .profile-tool-card, .cart-trash-button, .button";
+
+  let mouseX = window.innerWidth / 2;
+  let mouseY = window.innerHeight / 2;
+  let dotX = mouseX;
+  let dotY = mouseY;
+  let glowX = mouseX;
+  let glowY = mouseY;
+  let lastParticleTime = 0;
+  let isVisible = false;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const dot = document.createElement("div");
+    const glow = document.createElement("div");
+
+    dot.className = "cursor-trail-dot";
+    glow.className = "cursor-trail-glow";
+
+    document.body.appendChild(glow);
+    document.body.appendChild(dot);
+    document.body.classList.add("cursor-trail-active");
+
+    document.addEventListener("mousemove", (event) => {
+      mouseX = event.clientX;
+      mouseY = event.clientY;
+
+      if (!isVisible) {
+        isVisible = true;
+        dot.style.opacity = "1";
+        glow.style.opacity = "1";
+      }
+
+      const now = performance.now();
+
+      if (now - lastParticleTime > 28) {
+        createParticle(mouseX, mouseY);
+        lastParticleTime = now;
+      }
+    }, { passive: true });
+
+    document.addEventListener("mouseleave", () => {
+      isVisible = false;
+      dot.style.opacity = "0";
+      glow.style.opacity = "0";
+    });
+
+    document.addEventListener("mouseenter", () => {
+      isVisible = true;
+      dot.style.opacity = "1";
+      glow.style.opacity = "1";
+    });
+
+    document.addEventListener("mouseover", (event) => {
+      if (event.target.closest(interactiveSelector)) {
+        document.body.classList.add("cursor-trail-hovering");
+      }
+    });
+
+    document.addEventListener("mouseout", (event) => {
+      if (event.target.closest(interactiveSelector)) {
+        document.body.classList.remove("cursor-trail-hovering");
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      createClickBurst(event.clientX, event.clientY);
+    });
+
+    function animate() {
+      dotX += (mouseX - dotX) * 0.42;
+      dotY += (mouseY - dotY) * 0.42;
+
+      glowX += (mouseX - glowX) * 0.16;
+      glowY += (mouseY - glowY) * 0.16;
+
+      dot.style.transform = `translate3d(${dotX}px, ${dotY}px, 0) translate(-50%, -50%)`;
+      glow.style.transform = `translate3d(${glowX}px, ${glowY}px, 0) translate(-50%, -50%)`;
+
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+  });
+
+  function createParticle(x, y) {
+    const particle = document.createElement("span");
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 18 + Math.random() * 30;
+    const size = 4 + Math.random() * 6;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+
+    particle.className = "cursor-trail-particle";
+    particle.style.left = `${x}px`;
+    particle.style.top = `${y}px`;
+    particle.style.setProperty("--particle-x", `${Math.cos(angle) * distance}px`);
+    particle.style.setProperty("--particle-y", `${Math.sin(angle) * distance}px`);
+    particle.style.setProperty("--particle-size", `${size}px`);
+    particle.style.setProperty("--particle-color", color);
+
+    document.body.appendChild(particle);
+    window.setTimeout(() => particle.remove(), 720);
+  }
+
+  function createClickBurst(x, y) {
+    const burst = document.createElement("span");
+    burst.className = "cursor-trail-click-burst";
+    burst.style.left = `${x}px`;
+    burst.style.top = `${y}px`;
+
+    document.body.appendChild(burst);
+    window.setTimeout(() => burst.remove(), 560);
+  }
+})();
+
+})();
+
+
+/* =========================================================
+   Timed Order Tracker Polling
+   Works with the backend route:
+   /order/<order_id>/status
+
+   What this does:
+   - Finds order cards with data-order-id
+   - Checks the backend every 15 seconds
+   - Updates the status pill text/color
+   - Updates profile mini tracker progress bars
+   - Updates order confirmation full tracker
+   ========================================================= */
+
+document.addEventListener("DOMContentLoaded", () => {
+  setupTimedOrderTrackerPolling();
+});
+
+function setupTimedOrderTrackerPolling() {
+  const orderCards = Array.from(
+    document.querySelectorAll("[data-order-card][data-order-id]")
+  );
+
+  if (!orderCards.length) return;
+
+  const orderIds = [
+    ...new Set(
+      orderCards
+        .map((card) => card.dataset.orderId)
+        .filter(Boolean)
+    ),
+  ];
+
+  orderIds.forEach((orderId) => {
+    updateOrderTracker(orderId, { showNotice: false });
+  });
+
+  window.setInterval(() => {
+    orderIds.forEach((orderId) => {
+      updateOrderTracker(orderId, { showNotice: true });
+    });
+  }, 15000);
+}
+
+async function updateOrderTracker(orderId, options = {}) {
+  try {
+    const response = await fetch(`/order/${orderId}/status`, {
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) return;
+
+    const data = await response.json();
+
+    const previousStatus = getCurrentOrderStatus(orderId);
+
+    updateOrderStatusText(orderId, data.status, data.status_slug);
+    updateMiniOrderTracker(orderId, data.status, data.progress, data.is_cancelled);
+    updateFullOrderTracker(orderId, data.status, data.progress, data.is_cancelled);
+
+    if (
+      options.showNotice &&
+      previousStatus &&
+      data.status &&
+      previousStatus.toLowerCase() !== data.status.toLowerCase()
+    ) {
+      showOrderTrackerNotice(`Order #${orderId} updated to ${data.status}.`);
+    }
+  } catch (error) {
+    console.warn("Order tracker update failed:", error);
+  }
+}
+
+function getCurrentOrderStatus(orderId) {
+  const statusElement = document.querySelector(
+    `[data-order-card][data-order-id="${orderId}"] [data-order-status]`
+  );
+
+  return statusElement ? statusElement.textContent.trim() : "";
+}
+
+function updateOrderStatusText(orderId, status, statusSlug) {
+  const safeStatus = status || "Pending";
+  const safeSlug = statusSlug || safeStatus.toLowerCase().replace(/\s+/g, "-");
+
+  document
+    .querySelectorAll(`[data-order-card][data-order-id="${orderId}"] [data-order-status]`)
+    .forEach((element) => {
+      element.textContent = safeStatus;
+
+      Array.from(element.classList).forEach((className) => {
+        if (className.startsWith("status-")) {
+          element.classList.remove(className);
+        }
+      });
+
+      element.classList.add(`status-${safeSlug}`);
+    });
+
+  document
+    .querySelectorAll(`[data-order-tracker][data-order-id="${orderId}"]`)
+    .forEach((tracker) => {
+      Array.from(tracker.classList).forEach((className) => {
+        if (className.startsWith("status-")) {
+          tracker.classList.remove(className);
+        }
+      });
+
+      tracker.classList.add(`status-${safeSlug}`);
+    });
+}
+
+function updateMiniOrderTracker(orderId, status, progress, isCancelled) {
+  const trackers = document.querySelectorAll(
+    `.mini-order-tracker[data-order-id="${orderId}"]`
+  );
+
+  trackers.forEach((tracker) => {
+    if (isCancelled) {
+      tracker.classList.add("mini-order-tracker-cancelled");
+
+      if (!tracker.querySelector(".mini-tracker-cancelled-message")) {
+        tracker.innerHTML = `
+          <div class="mini-tracker-cancelled-message">
+            This order has been cancelled.
+          </div>
+        `;
+      }
+
+      return;
+    }
+
+    const bar = tracker.querySelector("[data-order-progress-bar]");
+
+    if (bar) {
+      bar.style.width = `${Number(progress) || 0}%`;
+    }
+
+    updateTrackerSteps(tracker, status);
+  });
+}
+
+function updateFullOrderTracker(orderId, status, progress, isCancelled) {
+  const trackers = document.querySelectorAll(
+    `.order-progress-card[data-order-id="${orderId}"]`
+  );
+
+  trackers.forEach((tracker) => {
+    const progressValue = Number(progress) || 0;
+
+    tracker.style.setProperty("--progress", `${progressValue}%`);
+
+    const track = tracker.querySelector(".order-progress-track");
+
+    if (track) {
+      track.style.setProperty("--progress", `${progressValue}%`);
+    }
+
+    if (isCancelled) {
+      tracker.classList.add("status-cancelled");
+      return;
+    }
+
+    updateTrackerSteps(tracker, status);
+  });
+}
+
+function updateTrackerSteps(tracker, rawStatus) {
+  const status = String(rawStatus || "Pending").toLowerCase();
+  const normalizedStatus = status === "confirmed" ? "processing" : status;
+
+  const activeStepsByStatus = {
+    pending: ["pending"],
+    processing: ["pending", "processing"],
+    shipped: ["pending", "processing", "shipped"],
+    completed: ["pending", "processing", "shipped", "completed"],
+  };
+
+  const activeSteps = activeStepsByStatus[normalizedStatus] || ["pending"];
+
+  tracker.querySelectorAll("[data-step]").forEach((step) => {
+    const stepName = step.dataset.step;
+    const isActive = activeSteps.includes(stepName);
+    const isCurrent = stepName === normalizedStatus;
+    const isComplete = isActive && !isCurrent;
+
+    step.classList.toggle("active", isActive);
+    step.classList.toggle("is-active", isActive);
+    step.classList.toggle("current", isCurrent);
+    step.classList.toggle("is-current", isCurrent);
+    step.classList.toggle("is-complete", isComplete);
+  });
+}
+
+function showOrderTrackerNotice(message) {
+  const notice = document.createElement("div");
+
+  notice.textContent = message;
+  notice.style.position = "fixed";
+  notice.style.right = "1rem";
+  notice.style.bottom = "5.25rem";
+  notice.style.zIndex = "9999";
+  notice.style.maxWidth = "min(24rem, calc(100vw - 2rem))";
+  notice.style.padding = "0.85rem 1rem";
+  notice.style.borderRadius = "999px";
+  notice.style.color = "#07101d";
+  notice.style.fontWeight = "900";
+  notice.style.background = "linear-gradient(135deg, #00e5ff, #ffcf5a)";
+  notice.style.boxShadow = "0 18px 50px rgba(0, 0, 0, 0.35)";
+  notice.style.transform = "translateY(12px)";
+  notice.style.opacity = "0";
+  notice.style.transition = "opacity 180ms ease, transform 180ms ease";
+
+  document.body.appendChild(notice);
+
+  requestAnimationFrame(() => {
+    notice.style.opacity = "1";
+    notice.style.transform = "translateY(0)";
+  });
+
+  window.setTimeout(() => {
+    notice.style.opacity = "0";
+    notice.style.transform = "translateY(12px)";
+    window.setTimeout(() => notice.remove(), 220);
+  }, 3200);
+}
+
+// Set initial order tracker progress without inline Jinja CSS
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".mini-tracker-bar[data-initial-progress]").forEach((tracker) => {
+    const progress = Number(tracker.dataset.initialProgress) || 0;
+    const bar = tracker.querySelector("[data-order-progress-bar]");
+
+    if (bar) {
+      bar.style.width = `${progress}%`;
+    }
+  });
+});

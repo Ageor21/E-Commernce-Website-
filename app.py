@@ -1,7 +1,8 @@
 import os
 import logging
+from datetime import datetime
 
-from flask import Flask, request, session, render_template, flash, redirect, url_for
+from flask import Flask, request, session, render_template, flash, redirect, url_for, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Message
 
@@ -107,6 +108,103 @@ def merge_session_cart_into_user_cart(user_id):
 
     session.pop("cart", None)
     session.modified = True
+
+
+# order tracker timing.
+ORDER_STATUS_TIMELINE_MINUTES = {
+    "Pending": 0,
+    "Processing": .25,
+    "Shipped": .45,
+    "Completed": .65,
+}
+
+ORDER_STATUS_PROGRESS = {
+    "pending": 0,
+    "confirmed": 33,
+    "processing": 33,
+    "shipped": 66,
+    "completed": 100,
+    "cancelled": 0,
+}
+
+
+
+def get_order_progress(status):
+    """
+    Converts an order status into a progress percentage for the tracker.
+    """
+    return ORDER_STATUS_PROGRESS.get((status or "").lower(), 0)
+
+
+def get_order_status_slug(status):
+    """
+    Converts status text into a safe CSS class string.
+    Example: "In Progress" -> "in-progress"
+    """
+    return (status or "pending").lower().replace(" ", "-")
+
+
+def auto_update_order_status(order, commit=False):
+    """
+    Automatically updates an order status based on how much time has passed.
+
+    Demo schedule:
+    0 minutes  -> Pending
+    1 minute   -> Processing
+    3 minutes  -> Shipped
+    5 minutes  -> Completed
+
+    Cancelled and Completed orders do not auto-change.
+    """
+    if not order or not order.created_at:
+        return order
+
+    current_status = (order.status or "Pending").lower()
+
+    if current_status in ["cancelled", "completed"]:
+        return order
+
+    now = datetime.utcnow()
+    created_at = order.created_at
+
+    elapsed_minutes = (now - created_at).total_seconds() / 60
+
+    if elapsed_minutes >= ORDER_STATUS_TIMELINE_MINUTES["Completed"]:
+        new_status = "Completed"
+    elif elapsed_minutes >= ORDER_STATUS_TIMELINE_MINUTES["Shipped"]:
+        new_status = "Shipped"
+    elif elapsed_minutes >= ORDER_STATUS_TIMELINE_MINUTES["Processing"]:
+        new_status = "Processing"
+    else:
+        new_status = "Pending"
+
+    if order.status != new_status:
+        order.status = new_status
+
+        if commit:
+            db.session.commit()
+
+    return order
+
+
+def auto_update_orders(orders, commit=True):
+    """
+    Auto-updates multiple orders and commits once.
+    """
+    changed = False
+
+    for order in orders:
+        old_status = order.status
+        auto_update_order_status(order, commit=False)
+
+        if order.status != old_status:
+            changed = True
+
+    if changed and commit:
+        db.session.commit()
+
+    return orders
+
 
 # Routes
 @app.route("/")
@@ -287,7 +385,47 @@ def place_order():
 @app.route("/order_confirmation/<int:order_id>")
 def order_confirmation(order_id):
     order = Order.query.get_or_404(order_id)
-    return render_template("order_confirmation.html", order=order)
+
+    # Keep the tracker current when the confirmation page is loaded.
+    auto_update_order_status(order, commit=True)
+
+    return render_template(
+        "order_confirmation.html",
+        order=order,
+        progress=get_order_progress(order.status),
+        status_slug=get_order_status_slug(order.status)
+    )
+
+
+
+
+@app.route("/order/<int:order_id>/status")
+def get_order_status(order_id):
+    """
+    Frontend polling endpoint.
+    The profile/confirmation pages call this route every few seconds
+    so the tracker can update without refreshing the page.
+    """
+    if "user_id" not in session:
+        return jsonify({"error": "You must be logged in to view this order."}), 401
+
+    order = Order.query.get_or_404(order_id)
+
+    user_owns_order = order.user_id == session.get("user_id")
+    user_is_admin = session.get("is_admin")
+
+    if not user_owns_order and not user_is_admin:
+        return jsonify({"error": "You are not authorized to view this order."}), 403
+
+    auto_update_order_status(order, commit=True)
+
+    return jsonify({
+        "order_id": order.id,
+        "status": order.status,
+        "status_slug": get_order_status_slug(order.status),
+        "progress": get_order_progress(order.status),
+        "is_cancelled": (order.status or "").lower() == "cancelled",
+    })
 
 
 @app.route("/order/<int:order_id>/update_status", methods=["POST"])
@@ -378,37 +516,89 @@ def logout():
     return redirect(url_for('home'))
 
 
-@app.route("/profile", methods=["GET", "POST"])
+@app.route('/profile', methods=['GET', 'POST'])
 def profile():
-    if "user_id" not in session:
+    if 'user_id' not in session:
         flash("You need to log in to view your profile.", "danger")
-        return redirect(url_for("login"))
+        return redirect(url_for('login'))
 
-    user = User.query.get_or_404(session["user_id"])
+    user = User.query.get_or_404(session['user_id'])
 
-    if request.method == "POST":
-        name = request.form.get("name")
-        email = request.form.get("email")
-        password = request.form.get("password")
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        email = request.form.get('email', '').strip()
+        current_password = request.form.get('current_password', '')
+        new_password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
 
-        if name:
+        changed = False
+
+        if not name:
+            flash("Name is required.", "warning")
+            return redirect(url_for('profile'))
+
+        if not email:
+            flash("Email is required.", "warning")
+            return redirect(url_for('profile'))
+
+        if name != user.name:
             user.name = name
+            changed = True
 
-        if email:
+        email_is_changing = email != user.email
+        password_is_changing = bool(new_password)
+
+        if email_is_changing or password_is_changing:
+            if not current_password or not check_password_hash(user.password, current_password):
+                flash("Please enter your current password to change your email or password.", "danger")
+                return redirect(url_for('profile'))
+
+        if email_is_changing:
+            existing_user = User.query.filter(User.email == email, User.id != user.id).first()
+
+            if existing_user:
+                flash("That email is already being used by another account.", "danger")
+                return redirect(url_for('profile'))
+
             user.email = email
+            changed = True
 
-        if password and len(password) >= 6:
-            user.password = generate_password_hash(password, method="pbkdf2:sha256")
+        if password_is_changing:
+            if len(new_password) < 6:
+                flash("New password must be at least 6 characters long.", "warning")
+                return redirect(url_for('profile'))
 
-        db.session.commit()
+            if new_password != confirm_password:
+                flash("New password and confirmation password do not match.", "danger")
+                return redirect(url_for('profile'))
 
-        flash("Profile updated successfully!", "success")
-        return redirect(url_for("profile"))
+            # pbkdf2 avoids the hashlib.scrypt error on your current Python/OpenSSL setup.
+            user.password = generate_password_hash(new_password, method="pbkdf2:sha256")
+            changed = True
+
+        if changed:
+            db.session.commit()
+            flash("Profile updated successfully.", "success")
+        else:
+            flash("No profile changes were made.", "info")
+
+        return redirect(url_for('profile'))
 
     orders = Order.query.filter_by(user_id=user.id).order_by(Order.created_at.desc()).all()
 
-    return render_template("profile.html", user=user, orders=orders)
+    profile_stats = {
+        "total_orders": len(orders),
+        "total_spent": sum(order.total_price for order in orders),
+        "pending_orders": sum(1 for order in orders if order.status in ["Pending", "Processing"]),
+        "latest_order": orders[0] if orders else None,
+    }
 
+    return render_template(
+        'profile.html',
+        user=user,
+        orders=orders,
+        profile_stats=profile_stats
+    )
 
 @app.route("/product/<int:product_id>", methods=["GET", "POST"])
 def product_view(product_id):
@@ -623,4 +813,4 @@ def send_email(subject, recipients, body):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    app.run(host="0.0.0.0", port=5004, debug=True)
