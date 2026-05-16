@@ -377,9 +377,6 @@ def place_order():
 
     return redirect(url_for('order_confirmation', order_id=order.id))
 
-@app.route('/favicon.ico')
-def favicon():
-    return '', 204
 
 @app.route("/order_confirmation/<int:order_id>")
 def order_confirmation(order_id):
@@ -787,6 +784,21 @@ def internal_server_error(error):
     flash("An unexpected error occurred. Please try again later.", "danger")
     return redirect(url_for("home"))
 
+@app.route("/debug/products")
+def debug_products():
+    products = Product.query.all()
+
+    return jsonify({
+        "product_count": len(products),
+        "products": [
+            {
+                "id": product.id,
+                "name": product.name,
+                "stock": product.stock
+            }
+            for product in products
+        ]
+    })
 
 def send_email(subject, recipients, body):
     sender = app.config.get("MAIL_DEFAULT_SENDER") or app.config.get("MAIL_USERNAME")
