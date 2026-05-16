@@ -384,16 +384,9 @@ def place_order():
 
         print("CART CLEARED")
 
-        email_sent = send_email(
-            "Order Confirmation",
-            [user.email],
-            f"Hi {user.name},\n\n"
-            f"Your order has been placed successfully. Order ID: {order.id}.\n\n"
-            f"Thank you for shopping with us!\n"
-            f"The ShopEase Team"
-        )
-
-        print("EMAIL SENT:", email_sent)
+        # Email sending is temporarily disabled because it can hang/fail on Render
+        # if Gmail SMTP environment variables are not configured correctly.
+        flash("Order placed successfully!", "success")
 
         return redirect(url_for('order_confirmation', order_id=order.id))
 
