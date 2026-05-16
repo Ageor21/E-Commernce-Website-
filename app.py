@@ -788,6 +788,7 @@ def internal_server_error(error):
 def debug_products():
     products = Product.query.all()
 
+
     return jsonify({
         "product_count": len(products),
         "products": [
@@ -799,6 +800,10 @@ def debug_products():
             for product in products
         ]
     })
+
+@app.route("/favicon.ico")
+def favicon():
+    return "", 204
 
 def send_email(subject, recipients, body):
     sender = app.config.get("MAIL_DEFAULT_SENDER") or app.config.get("MAIL_USERNAME")
