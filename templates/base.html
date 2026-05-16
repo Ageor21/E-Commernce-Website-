@@ -15,9 +15,20 @@
 
         <header class="site-header">
             <nav class="nav-wrap">
-                <a href="{{ url_for('home') }}" class="brand-link" aria-label="Aaron's Tech home">
-                    <span class="brand-mark">AT</span>
-                    <span>
+                <a href="{{ url_for('home') }}" class="home-button" aria-label="Home">
+                    <svg class="home-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                        <path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-9.5Z"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"/>
+                        <path d="M9 21v-6h6v6"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"/>
+                        </svg>
+                    </a>
                         <span class="brand-title">Aaron's Tech</span>
                         <span class="brand-subtitle">Premium gear. Clean checkout.</span>
                     </span>
