@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Aaron's Tech{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+</head>
+<body>
+    <div class="page-shell">
+        <div class="ambient ambient-one"></div>
+        <div class="ambient ambient-two"></div>
+        <div class="ambient ambient-three"></div>
+
+        <header class="site-header">
+            <nav class="nav-wrap">
+                <a href="{{ url_for('home') }}" class="brand-link" aria-label="Aaron's Tech home">
+                    <span class="brand-mark">AT</span>
+                    <span>
+                        <span class="brand-title">Aaron's Tech</span>
+                        <span class="brand-subtitle">Premium gear. Clean checkout.</span>
+                    </span>
+                </a>
+
+                <div class="nav-actions">
+                    <form method="get" action="{{ url_for('search') }}" class="nav-search">
+                        <input type="text" name="query" placeholder="Search products..." aria-label="Search products" required>
+                        <button type="submit">Search</button>
+                    </form>
+
+                    {% if session.get('is_admin') %}
+                    <a href="{{ url_for('admin_dashboard') }}" class="nav-pill">Admin</a>
+                    {% endif %}
+
+                    <a href="{{ url_for('cart') }}" class="nav-pill">Cart</a>
+
+                    {% if session.get('user_id') %}
+                    <a href="{{ url_for('profile') }}" class="nav-pill">Profile</a>
+                    <a href="{{ url_for('logout') }}" class="nav-pill nav-pill-muted">Logout</a>
+                    {% else %}
+                    <a href="{{ url_for('login') }}" class="nav-pill">Login</a>
+                    {% endif %}
+                </div>
+            </nav>
+
+            {% block hero %}{% endblock %}
+        </header>
+
+        <main class="content-wrap">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                <div class="flash-message {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer class="site-footer">
+            <p>© Aaron's Tech — Built for smooth shopping and clean product management.</p>
+        </footer>
+    </div>
+</body>
+</html>

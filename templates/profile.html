@@ -1,73 +1,196 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profile - E-Commerce</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-</head>
-<body>
-    <header>
-        <h1>Your Profile</h1>
-        <a href="{{ url_for('home') }}"><u>Back to Home</u></a>
-    </header>
-    <main>
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        <div class="flash-messages">
-            {% for category, message in messages %}
-            <div class="flash-message {{ category }}">{{ message }}</div>
-            {% endfor %}
+{% extends "base.html" %}
+
+{% block title %}Profile - Aaron's Tech{% endblock %}
+
+{% block content %}
+{% set total_orders = profile_stats.total_orders if profile_stats is defined else orders|length %}
+{% set total_spent = profile_stats.total_spent if profile_stats is defined else orders|sum(attribute='total_price') %}
+{% set pending_orders = profile_stats.pending_orders if profile_stats is defined else 0 %}
+{% set latest_order = profile_stats.latest_order if profile_stats is defined else (orders[0] if orders else none) %}
+
+<section class="profile-hero-card">
+    <div class="profile-identity">
+        <div class="profile-avatar-xl" aria-hidden="true">
+            {{ user.name[:1]|upper }}
         </div>
+
+        <div>
+            <span class="eyebrow">Account Center</span>
+            <h1>Welcome back, {{ user.name }}</h1>
+            <p>Manage your account, security settings, and shopping history from one polished dashboard.</p>
+        </div>
+    </div>
+
+    <div class="profile-completion-card" data-profile-completion-card>
+        <span>Profile Strength</span>
+        <strong data-profile-score>0%</strong>
+        <div class="profile-progress">
+            <span data-profile-progress></span>
+        </div>
+        <small data-profile-tip>Complete your account details to boost your profile.</small>
+    </div>
+</section>
+
+<section class="profile-stat-grid">
+    <article class="profile-stat-card">
+        <span>Total Orders</span>
+        <strong>{{ total_orders }}</strong>
+        <small>Orders placed with Aaron's Tech</small>
+    </article>
+
+    <article class="profile-stat-card">
+        <span>Total Spent</span>
+        <strong>${{ "%.2f" % total_spent }}</strong>
+        <small>Lifetime checkout value</small>
+    </article>
+
+    <article class="profile-stat-card">
+        <span>Pending Orders</span>
+        <strong>{{ pending_orders }}</strong>
+        <small>Orders still in progress</small>
+    </article>
+
+    <article class="profile-stat-card">
+        <span>Latest Order</span>
+        {% if latest_order %}
+        <strong>#{{ latest_order.id }}</strong>
+        <small>{{ latest_order.status }} · ${{ "%.2f" % latest_order.total_price }}</small>
+        {% else %}
+        <strong>—</strong>
+        <small>No orders yet</small>
         {% endif %}
-        {% endwith %}
+    </article>
+</section>
 
-        <!-- User Details -->
-        <section class="user-details">
-            <h2>Personal Information</h2>
-            <form method="post" class="profile-form">
-                <label for="name">Name:</label>
-                <input type="text" name="name" id="name" value="{{ user.name }}" required>
+<section class="profile-dashboard-grid">
+    <article class="panel profile-account-panel">
+        <div class="panel-heading-row">
+            <div>
+                <span class="eyebrow">Personal Info</span>
+                <h2>Edit Account</h2>
+            </div>
+            <span class="profile-lock-pill">Secure Update</span>
+        </div>
 
-                <label for="email">Email:</label>
-                <input type="email" name="email" id="email" value="{{ user.email }}" required>
+        <form method="post" class="modern-form profile-form enhanced-profile-form" data-profile-form>
+            <div class="form-split">
+                <label for="name">
+                    Name
+                    <input type="text" name="name" id="name" value="{{ user.name }}" required autocomplete="name">
+                </label>
 
-                <label for="password">Password (leave blank to keep current password):</label>
-                <input type="password" name="password" id="password" placeholder="New password (min 6 chars)">
+                <label for="email">
+                    Email
+                    <input type="email" name="email" id="email" value="{{ user.email }}" required autocomplete="email">
+                </label>
+            </div>
 
-                <button type="submit">Update Profile</button>
-            </form>
-        </section>
+            <div class="profile-security-box">
+                <div>
+                    <h3>Security Check</h3>
+                    <p>Changing your email or password should require your current password.</p>
+                </div>
 
-        <!-- Order History -->
-        <section class="order-history">
-            <h2>Order History</h2>
-            {% if orders %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Order ID</th>
-                        <th>Date</th>
-                        <th>Total</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for order in orders %}
-                    <tr>
-                        <td>{{ order.id }}</td>
-                        <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-                        <td>${{ order.total_price }}</td>
-                        <td>{{ order.status }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <p>You have no orders yet.</p>
+                <label for="current_password">
+                    Current Password
+                    <input type="password" name="current_password" id="current_password" placeholder="Required for email/password changes" autocomplete="current-password">
+                </label>
+            </div>
+
+            <div class="form-split">
+                <label for="password">
+                    New Password
+                    <input type="password" name="password" id="password" placeholder="Leave blank to keep current password" autocomplete="new-password">
+                </label>
+
+                <label for="confirm_password">
+                    Confirm New Password
+                    <input type="password" name="confirm_password" id="confirm_password" placeholder="Re-enter new password" autocomplete="new-password">
+                </label>
+            </div>
+
+            <div class="profile-action-row">
+                <button type="submit" class="button button-primary">Save Profile Changes</button>
+                <button type="button" class="button button-secondary" data-reset-profile-form>Reset</button>
+            </div>
+        </form>
+    </article>
+
+    <aside class="panel profile-side-panel">
+        <span class="eyebrow">Quick Tools</span>
+        <h2>Account Extras</h2>
+
+        <div class="profile-tool-list">
+            <button type="button" class="profile-tool-card" data-copy-email="{{ user.email }}">
+                <span>📋</span>
+                <strong>Copy Email</strong>
+                <small>Copy your account email to clipboard.</small>
+            </button>
+
+            <a href="{{ url_for('cart') }}" class="profile-tool-card">
+                <span>🛒</span>
+                <strong>View Cart</strong>
+                <small>Jump back to your saved shopping cart.</small>
+            </a>
+
+            <a href="{{ url_for('home') }}" class="profile-tool-card">
+                <span>⚡</span>
+                <strong>Shop Deals</strong>
+                <small>Explore the latest tech products.</small>
+            </a>
+
+            {% if session.get('is_admin') %}
+            <a href="{{ url_for('admin_dashboard') }}" class="profile-tool-card">
+                <span>🛠️</span>
+                <strong>Admin Panel</strong>
+                <small>Manage products, users, and orders.</small>
+            </a>
             {% endif %}
-        </section>
-    </main>
-</body>
-</html>
+        </div>
+    </aside>
+</section>
+
+<section class="panel profile-orders-panel">
+    <div class="panel-heading-row">
+        <div>
+            <span class="eyebrow">Shopping History</span>
+            <h2>Order Timeline</h2>
+        </div>
+
+        {% if orders %}
+        <input type="search" class="profile-order-search" placeholder="Filter orders..." data-order-search aria-label="Filter orders">
+        {% endif %}
+    </div>
+
+    {% if orders %}
+    <div class="profile-order-list" data-order-list>
+        {% for order in orders %}
+        <article class="profile-order-card" data-order-card>
+            <div>
+                <strong>Order #{{ order.id }}</strong>
+                <small>{{ order.created_at.strftime('%B %d, %Y at %I:%M %p') }}</small>
+            </div>
+
+            <div>
+                <span class="status-pill status-{{ order.status|lower }}">{{ order.status }}</span>
+            </div>
+
+            <div>
+                <span>Total</span>
+                <strong>${{ "%.2f" % order.total_price }}</strong>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state small">
+        <div class="empty-icon">📦</div>
+        <h3>No orders yet</h3>
+        <p>Your future orders will show up here as sleek timeline cards.</p>
+        <a href="{{ url_for('home') }}" class="button button-primary">Start Shopping</a>
+    </div>
+    {% endif %}
+</section>
+
+<script src="{{ url_for('static', filename='profile_upgrade.js') }}" defer></script>
+{% endblock %}

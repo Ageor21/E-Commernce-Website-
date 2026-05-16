@@ -1,31 +1,44 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search Results</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <script src="{{ url_for('static', filename='script.js') }}" defer></script>
-</head>
-<body>
-    <header>
-        <h1>Search Results</h1>
-        <a href="{{ url_for('home') }}">Back to Home</a>
-    </header>
-    <main>
-        {% if products %}
-        <div class="product-grid">
-            {% for product in products %}
-            <div class="product-card">
-                <h3>{{ product.name }}</h3>
-                <p>{{ product.description }}</p>
-                <p>Price: ${{ product.price }}</p>
-            </div>
-            {% endfor %}
+{% extends "base.html" %}
+
+{% block title %}Search Results - Aaron's Tech{% endblock %}
+
+{% block content %}
+<section class="section-heading">
+    <span class="eyebrow">Search</span>
+    <h1>Results for "{{ query }}"</h1>
+    <p>Here are the products that matched your search.</p>
+</section>
+
+{% if products %}
+<div class="product-grid">
+    {% for product in products %}
+    <article class="product-card reveal-card">
+        <div class="product-media">
+            {% if product.image_url %}
+            <img src="{{ product.image_url }}" alt="{{ product.name }}">
+            {% else %}
+            <div class="product-placeholder">{{ product.name[:1] }}</div>
+            {% endif %}
+            <span class="stock-badge">{{ product.stock }} in stock</span>
         </div>
-        {% else %}
-        <p>No products found for "{{ query }}".</p>
-        {% endif %}
-    </main>
-</body>
-</html>
+
+        <div class="product-card-body">
+            <h3>{{ product.name }}</h3>
+            <p>{{ product.description }}</p>
+            <div class="product-meta">
+                <span class="price">${{ "%.2f" % product.price }}</span>
+                <a href="{{ url_for('product_view', product_id=product.id) }}" class="text-link">View details</a>
+            </div>
+        </div>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<section class="empty-state">
+    <div class="empty-icon">⌕</div>
+    <h2>No products found</h2>
+    <p>No products matched "{{ query }}". Try searching for another item.</p>
+    <a href="{{ url_for('home') }}" class="button button-primary">Back to Shop</a>
+</section>
+{% endif %}
+{% endblock %}

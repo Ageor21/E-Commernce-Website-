@@ -1,56 +1,113 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Cart</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-</head>
-<body>
-    <header>
-        <h1>Your Cart</h1>
-        <a href="{{ url_for('home') }}"> <u>Back to Home</u></a>
-    </header>
-    <main>
-        <!-- Check if the cart contains items -->
-        {% if cart_items %}
-        <table class="cart-table">
-            <thead>
-                <tr>
-                    <th>Product</th>
-                    <th>Price</th>
-                    <th>Quantity</th>
-                    <th>Total</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in cart_items %}
-                <tr>
-                    <td>{{ item.product.name }}</td>
-                    <td>${{ "%.2f" % item.product.price }}</td>
-                    <td>{{ item.quantity }}</td>
-                    <td>${{ "%.2f" % (item.quantity * item.product.price) }}</td>
-                    <td>
-                        <!-- Remove Item from Cart -->
-                        <form method="post" action="{{ url_for('remove_from_cart', product_id=item.product.id) }}">
-                            <button type="submit" class="delete-button">Remove</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        <div class="cart-total">
-            <p><strong>Total: ${{ "%.2f" % total_price }}</strong></p>
-            <!-- Place Order -->
-            <form method="post" action="{{ url_for('place_order') }}">
-                <button type="submit" class="button">Place Order</button>
-            </form>
-        </div>
-        {% else %}
-        <p>Your cart is empty. <a href="{{ url_for('home') }}">Continue shopping</a>.</p>
-        {% endif %}
-    </main>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}Your Cart - Aaron's Tech{% endblock %}
+
+{% block content %}
+<section class="section-heading">
+    <span class="eyebrow">Checkout Ready</span>
+    <h1>Your Cart</h1>
+    <p>Review your items, remove anything you no longer need, and place your order when ready.</p>
+</section>
+
+{% if cart_items %}
+<section class="table-card reveal-card">
+    <table class="cart-table">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Price</th>
+                <th>Quantity</th>
+                <th>Total</th>
+                <th class="cart-action-cell">Remove</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in cart_items %}
+            <tr>
+                <td>
+                    <div class="cart-product-cell">
+                        <span class="cart-product-name">{{ item.product.name }}</span>
+                        <span class="cart-product-meta">In your cart</span>
+                    </div>
+                </td>
+                <td>${{ "%.2f" % item.product.price }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>${{ "%.2f" % (item.quantity * item.product.price) }}</td>
+                <td class="cart-action-cell">
+                    <form
+                        method="post"
+                        action="{{ url_for('remove_from_cart', product_id=item.product.id) }}"
+                        class="cart-remove-form"
+                        data-cart-item-name="{{ item.product.name }}"
+                    >
+                        <button
+                            type="submit"
+                            class="cart-trash-button"
+                            aria-label="Remove {{ item.product.name }} from cart"
+                            title="Remove {{ item.product.name }}"
+                        >
+                            <svg class="trash-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <path
+                                    fill="currentColor"
+                                    d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 7h2v8h-2v-8Zm4 0h2v8h-2v-8ZM6 8h12l-1 13H7L6 8Z"
+                                />
+                            </svg>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="cart-total">
+        <span>Total</span>
+        <strong>${{ "%.2f" % total_price }}</strong>
+        <form method="post" action="{{ url_for('place_order') }}">
+            <button type="submit" class="button button-primary">Place Order</button>
+        </form>
+    </div>
+</section>
+{% elif products %}
+<section class="table-card reveal-card">
+    <table class="cart-table">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Price</th>
+                <th>Quantity</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+            <tr>
+                <td>
+                    <div class="cart-product-cell">
+                        <span class="cart-product-name">{{ product.name }}</span>
+                        <span class="cart-product-meta">Temporary cart item</span>
+                    </div>
+                </td>
+                <td>${{ "%.2f" % product.price }}</td>
+                <td>{{ cart[product.id|string] }}</td>
+                <td>${{ "%.2f" % (product.price * cart[product.id|string]) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="cart-total">
+        <span>Total</span>
+        <strong>${{ "%.2f" % total_price }}</strong>
+        <a href="{{ url_for('login') }}" class="button button-primary">Log in to Checkout</a>
+    </div>
+</section>
+{% else %}
+<section class="empty-state">
+    <div class="empty-icon">🛒</div>
+    <h2>Your cart is empty</h2>
+    <p>Find something awesome and add it to your cart.</p>
+    <a href="{{ url_for('home') }}" class="button button-primary">Continue Shopping</a>
+</section>
+{% endif %}
+{% endblock %}

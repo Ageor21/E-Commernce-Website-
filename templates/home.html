@@ -1,78 +1,82 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home - E-Commerce</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <script src="{{ url_for('static', filename='script.js') }}" defer></script>
-</head>
-<body>
-    <header>
-        <div class="header-content">
-            <h1>Aaron's Tech, For All Your Tech Needs</h1>
-            <div class="menu-buttons">
-                <!-- Search Form -->
-                <form method="get" action="{{ url_for('search') }}">
-                    <input type="text" name="query" placeholder="Search products..." required>
-                    <button type="submit">Search</button>
-                </form>
-                {% if session.get('is_admin') %}
-                <a href="{{ url_for('admin_dashboard') }}" class="menu-button">🛠️ Admin Panel</a>
-                {% endif %}
-                <!-- Cart Button -->
-                <a href="{{ url_for('cart') }}" class="menu-button cart-button">Cart</a>
-                <!-- Profile, Login, and Logout Buttons -->
-                {% if session.get('user_id') %}
-                <a href="{{ url_for('profile') }}" class="menu-button profile-button">👤 Profile</a>
-                <a href="{{ url_for('logout') }}" class="menu-button logout-button">🔓 Logout</a>
-                {% else %}
-                <a href="{{ url_for('login') }}" class="menu-button login-button">Login</a>
-                {% endif %}
-            </div>
-        </div>
-    </header>
-    <!-- Bio Section -->
-    <section class="site-bio">
-        <h2>About Us</h2>
-        <p>
-            Welcome to <strong>Aaron's Tech</strong>, your one-stop destination for all your shopping needs! 
-            We offer a wide range of high-quality products, from the latest tech gadgets to everyday essentials. 
-            Our mission is to provide exceptional value and a seamless shopping experience to all our customers.
-        </p>
-        <p>
-            Join our community of happy shoppers and explore amazing deals today. At <strong>Aaron's Tech</strong>, we prioritize your satisfaction and aim to make online shopping enjoyable and hassle-free!
-        </p>
-    </section>
-    <main>
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        <div class="flash-messages">
-            {% for category, message in messages %}
-            <div class="flash-message {{ category }}">{{ message }}</div>
-            {% endfor %}
-        </div>
-        {% endif %}
-        {% endwith %}
+{% extends "base.html" %}
 
-        <h2>Product Catalog</h2>
-        <div class="product-grid">
-            {% for product in products %}
-            <div class="product-card">
-                <h3>{{ product.name }}</h3>
-                <p>{{ product.description }}</p>
-                <p>Price: ${{ product.price }}</p>
-                <form method="post" action="{{ url_for('add_to_cart', product_id=product.id) }}">
-                    <label for="quantity">Quantity:</label>
-                    <input type="number" name="quantity" value="1" min="1" max="{{ product.stock }}" required>
-                    <button type="submit">Add to Cart</button>
-                </form>
-                <!-- View Product Link -->
-                <a href="{{ url_for('product_view', product_id=product.id) }}" class="view-product-link">View Product</a>
-            </div>
-            {% endfor %}
+{% block title %}Aaron's Tech - Premium Tech Store{% endblock %}
+
+{% block hero %}
+<section class="hero-section">
+    <div class="hero-copy">
+        <span class="eyebrow">Next-gen essentials</span>
+        <h1>A slicker way to shop your favorite tech.</h1>
+        <p>
+            Discover premium devices, clean deals, and a smooth shopping experience
+            built for speed, style, and everyday convenience.
+        </p>
+        <div class="hero-actions">
+            <a href="#catalog" class="button button-primary">Shop Collection</a>
+            <a href="{{ url_for('cart') }}" class="button button-secondary">View Cart</a>
         </div>
-    </main>
-</body>
-</html>
+    </div>
+
+    <div class="hero-card">
+        <div class="hero-orb"></div>
+        <span class="hero-card-label">Featured drop</span>
+        <h2>Premium Tech</h2>
+        <p>Fast laptops, sharp audio, gaming power, and mobile essentials.</p>
+        <div class="hero-stats">
+            <div>
+                <strong>{{ products|length }}</strong>
+                <span>Products</span>
+            </div>
+            <div>
+                <strong>24/7</strong>
+                <span>Online</span>
+            </div>
+            <div>
+                <strong>Fast</strong>
+                <span>Checkout</span>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<section class="section-heading" id="catalog">
+    <span class="eyebrow">Catalog</span>
+    <h2>Featured Products</h2>
+    <p>Modern essentials with premium styling and quick cart actions.</p>
+</section>
+
+<div class="product-grid">
+    {% for product in products %}
+    <article class="product-card reveal-card">
+        <div class="product-media">
+            {% if product.image_url %}
+            <img src="{{ product.image_url }}" alt="{{ product.name }}">
+            {% else %}
+            <div class="product-placeholder">{{ product.name[:1] }}</div>
+            {% endif %}
+            <span class="stock-badge">{{ product.stock }} in stock</span>
+        </div>
+
+        <div class="product-card-body">
+            <h3>{{ product.name }}</h3>
+            <p>{{ product.description }}</p>
+
+            <div class="product-meta">
+                <span class="price">${{ "%.2f" % product.price }}</span>
+                <a href="{{ url_for('product_view', product_id=product.id) }}" class="text-link">View details</a>
+            </div>
+
+            <form method="post" action="{{ url_for('add_to_cart', product_id=product.id) }}" class="inline-cart-form">
+                <label>
+                    <span>Qty</span>
+                    <input type="number" name="quantity" value="1" min="1" max="{{ product.stock }}" required>
+                </label>
+                <button type="submit" class="button button-primary">Add to Cart</button>
+            </form>
+        </div>
+    </article>
+    {% endfor %}
+</div>
+{% endblock %}

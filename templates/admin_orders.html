@@ -1,109 +1,145 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-</head>
-<body>
-    <header>
-        <h1>Admin Dashboard</h1>
-        <a href="{{ url_for('home') }}"><u>Back to Home</u></a>
-    </header>
-    <main>
-        <section>
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Aaron's Tech{% endblock %}
+
+{% block content %}
+<section class="section-heading">
+    <span class="eyebrow">Control Center</span>
+    <h1>Admin Dashboard</h1>
+    <p>Manage users, products, and orders from one clean workspace.</p>
+</section>
+
+<section class="dashboard-grid">
+    <div class="metric-card reveal-card">
+        <span>Users</span>
+        <strong>{{ users|length }}</strong>
+    </div>
+    <div class="metric-card reveal-card">
+        <span>Products</span>
+        <strong>{{ products|length }}</strong>
+    </div>
+    <div class="metric-card reveal-card">
+        <span>Orders</span>
+        <strong>{{ orders|length }}</strong>
+    </div>
+</section>
+
+<section class="table-card reveal-card">
+    <div class="table-card-header">
+        <div>
+            <span class="eyebrow">People</span>
             <h2>Users</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Role</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user in users %}
-                    <tr>
-                        <td>{{ user.id }}</td>
-                        <td>{{ user.name }}</td>
-                        <td>{{ user.email }}</td>
-                        <td>{{ "Admin" if user.is_admin else "User" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </section>
+        </div>
+    </div>
 
-        <section>
+    <div class="table-scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>#{{ user.id }}</td>
+                    <td>{{ user.name }}</td>
+                    <td>{{ user.email }}</td>
+                    <td><span class="status-pill">{{ "Admin" if user.is_admin else "User" }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="table-card reveal-card">
+    <div class="table-card-header">
+        <div>
+            <span class="eyebrow">Inventory</span>
             <h2>Products</h2>
-            <a href="{{ url_for('add_product') }}" class="button">Add New Product</a>
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Price</th>
-                        <th>Stock</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for product in products %}
-                    <tr>
-                        <td>{{ product.id }}</td>
-                        <td>{{ product.name }}</td>
-                        <td>${{ "%.2f" % product.price }}</td>
-                        <td>{{ product.stock }}</td>
-                        <td>
-                            <a href="{{ url_for('edit_product', product_id=product.id) }}" class="button">Edit</a>
-                            <form method="post" action="{{ url_for('delete_product', product_id=product.id) }}" style="display:inline;">
-                                <button type="submit" class="delete-button">Delete</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </section>
+        </div>
+        <a href="{{ url_for('add_product') }}" class="button button-primary">Add New Product</a>
+    </div>
 
-        <section>
-            <h2>Orders</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>User</th>
-                        <th>Total Price</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for order in orders %}
-                    <tr>
-                        <td>{{ order.id }}</td>
-                        <td>{{ order.user.name }}</td>
-                        <td>${{ "%.2f" % order.total_price }}</td>
-                        <td>{{ order.status }}</td>
-                        <td>
-                            <form method="post" action="{{ url_for('update_order_status', order_id=order.id) }}">
-                                <select name="status" required>
-                                    <option value="Pending" {% if order.status == 'Pending' %}selected{% endif %}>Pending</option>
-                                    <option value="Processing" {% if order.status == 'Processing' %}selected{% endif %}>Processing</option>
-                                    <option value="Shipped" {% if order.status == 'Shipped' %}selected{% endif %}>Shipped</option>
-                                    <option value="Completed" {% if order.status == 'Completed' %}selected{% endif %}>Completed</option>
-                                    <option value="Cancelled" {% if order.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
-                                </select>
-                                <button type="submit" class="button">Update</button>
+    <div class="table-scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td>#{{ product.id }}</td>
+                    <td>{{ product.name }}</td>
+                    <td>${{ "%.2f" % product.price }}</td>
+                    <td>{{ product.stock }}</td>
+                    <td>
+                        <div class="row-actions">
+                            <a href="{{ url_for('edit_product', product_id=product.id) }}" class="button button-secondary">Edit</a>
+                            <form method="post" action="{{ url_for('delete_product', product_id=product.id) }}" class="table-action-form">
+                                <button type="submit" class="button button-danger">Delete</button>
                             </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </section>
-    </main>
-</body>
-</html>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="table-card reveal-card">
+    <div class="table-card-header">
+        <div>
+            <span class="eyebrow">Fulfillment</span>
+            <h2>Orders</h2>
+        </div>
+    </div>
+
+    <div class="table-scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>User</th>
+                    <th>Total Price</th>
+                    <th>Status</th>
+                    <th>Update</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>#{{ order.id }}</td>
+                    <td>{{ order.user.name }}</td>
+                    <td>${{ "%.2f" % order.total_price }}</td>
+                    <td><span class="status-pill">{{ order.status }}</span></td>
+                    <td>
+                        <form method="post" action="{{ url_for('update_order_status', order_id=order.id) }}" class="status-form">
+                            <select name="status" required>
+                                <option value="Pending" {% if order.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                <option value="Processing" {% if order.status == 'Processing' %}selected{% endif %}>Processing</option>
+                                <option value="Shipped" {% if order.status == 'Shipped' %}selected{% endif %}>Shipped</option>
+                                <option value="Completed" {% if order.status == 'Completed' %}selected{% endif %}>Completed</option>
+                                <option value="Cancelled" {% if order.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                            </select>
+                            <button type="submit" class="button button-secondary">Update</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
